@@ -53,9 +53,53 @@ const createVoipHardware = (request, response) => {
         })
 }
 
+const createComputerHardware = (request, response) => {
+
+    const {serviceTag, macId, name, activateDate} = request.body;
+    pool.query('INSERT INTO computer (servicetag, macid, name, activatedate) VALUES ($1, $2, $3, $4)', [serviceTag, macId, name, activateDate],
+        error => {
+            if (error) {
+                throw error;
+            } else {
+                response.status(201).json({status: 'success', message: 'Created new computer Object'})
+            }
+        });
+}
+
+const createInvoice = (request, response) => {
+    const {invoiceNumber, businessId, isQuote, laborCost} = request.body;
+    pool.query('INSERT INTO invoice (invoicenumber, businessid, isquote, laborcost) VALUES ($1, $2, $3, $4)', [invoiceNumber, businessId, isQuote, laborCost],
+        error => {
+            if (error) {
+                throw error;
+            } else {
+                response.status(201).json({status: "success", message: "Created new invoice"})
+            }
+        });
+}
+
+const createInternalComponent = (request, response) => {
+    const {id, name, price, vendor, quantity, tax} = request.body;
+    pool.query('INSERT INTO internalcomponents (id, name, price, vendor, quantity, tax) VALUES ($1, $2, $3, $4, $5, $6)', [id, name, price, vendor, quantity, tax],
+        error => {
+            if (error) {
+                throw error;
+            } else {
+                response.status(201).json({status: "success", message: "Created new component"})
+            }
+        });
+}
+
+
+
 app.route('/client').post(createNewClient);
 app.route('/hardware').post(createNewHardware);
 app.route('/voip').post(createVoipHardware);
+app.route('/computer').post(createComputerHardware);
+
+app.route('/invoice').post(createInvoice);
+app.route('/component').post(createInternalComponent);
+
 app.listen(3000, () => {
     console.log("Listening on port 3000");
 });
