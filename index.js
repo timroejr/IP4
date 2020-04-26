@@ -90,6 +90,55 @@ const createInternalComponent = (request, response) => {
         });
 }
 
+const createHardwareTest = (request, response) => {
+    const {dateexecuted, writespeed, readspeed, accesstime, cpuutilization, gpufps, openglscore, computerservicetag} = request.body;
+    pool.query('INSERT INTO hardwaretests (dateexecuted, writespeed, readspeed, accesstime, cpuutilization, gpufps, openglscore) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING hardwaretest', [dateexecuted, writespeed, readspeed, accesstime, cpuutilization, gpufps, openglscore],
+        (error, results) => {
+
+            console.log(results);
+            if (error) {
+                console.error(error.stack)
+                throw error;
+            } else {
+                var testResponse = results.rows[0].hardwaretest;
+                pool.query('INSERT INTO hardwarerelation (servicetag, hardwaretest) VALUES ($1, $2)', [computerservicetag, testResponse],
+                    (error, results) => {
+                        if (error) {
+                            console.error(error.stack);
+                            throw error;
+                        } else {
+                            response.status(201).json({status: "success", message: {"serviceTag": computerservicetag, "hardwareTest": testResponse}});
+                        }
+                    });
+            }
+
+        });
+}
+
+const createSoftware = (request, response) => {
+
+    const {name, dateinstalled, licensekey, computerservicetag} = request.body;
+    pool.query('INSERT INTO software (name, dateinstalled, licensekey) VALUES ($1, $2, $3) RETURNING softwareid', [name, dateinstalled, licensekey],
+        (error, results) => {
+            if (error) {
+                console.error(error.stack);
+                throw error;
+            } else {
+                var softwareIdCreated = results.rows[0].softwareid;
+                pool.query('INSERT INTO softwarerelation (softwareid, servicetag) VALUES ($1, $2)', [softwareIdCreated, computerservicetag],
+                    (error, results) => {
+                        if (error) {
+                            console.error(error.stack);
+                            throw error;
+                        } else {
+                            response.status(201).json({status: "success", message: {"serviceTag" : computerservicetag, "softwareId": softwareIdCreated}});
+                        }
+                    });
+            }
+        })
+
+}
+
 
 
 app.route('/client').post(createNewClient);
@@ -99,6 +148,11 @@ app.route('/computer').post(createComputerHardware);
 
 app.route('/invoice').post(createInvoice);
 app.route('/component').post(createInternalComponent);
+
+app.route('/hardwareTest').post(createHardwareTest);
+
+app.route('/software').post(createSoftware);
+
 
 app.listen(3000, () => {
     console.log("Listening on port 3000");
