@@ -24,6 +24,37 @@ const createNewClient = (request, response) => {
 
 }
 
+const getClient = (request, response) => {
+
+    console.log(request);
+    const {clientname, businessname} = request.query;
+    console.log(clientname);
+    console.log(businessname);
+
+    if (request.query != null) {
+        pool.query('SELECT * FROM CLIENT WHERE lower(clientname) LIKE $1 OR lower(businessname) LIKE $2', ['%' + clientname + '%', '%' + businessname + '%'],
+            (error, results) => {
+                if (error) {
+                    response.status(502);
+                    throw error;
+                } else {
+                    response.status(200).json(results.rows)
+                }
+            });
+    } else {
+        pool.query('SELECT * FROM CLIENT', (error, results) => {
+            if (error) {
+                response.status(502);
+            } else {
+                response.status(200).json(results.rows);
+            }
+        });
+
+    }
+
+
+}
+
 const createNewHardware = (request, response) => {
 
     const {macid, name, client, purchasedate, isvoip, iscompute} = request.body;
@@ -38,6 +69,23 @@ const createNewHardware = (request, response) => {
 
 
         });
+}
+
+const getHardware = (request, response) => {
+
+    const {client} = request.query;
+
+    pool.query('SELECT * FROM hardware FULL JOIN VOIP ON HARDWARE.MACID = VOIP.MACID FULL JOIN COMPUTER ON HARDWARE.MACID = COMPUTER.MACID WHERE "client" = $1', [client],
+        (error, results) => {
+        if (error) {
+            throw error;
+        } else {
+            response.status(200).json({status: 'success', message: results.rows});
+               }
+    });
+
+
+
 }
 
 const createVoipHardware = (request, response) => {
@@ -140,9 +188,9 @@ const createSoftware = (request, response) => {
 }
 
 
-
-app.route('/client').post(createNewClient);
-app.route('/hardware').post(createNewHardware);
+//Create Routes for API
+app.route('/client').post(createNewClient).get(getClient);
+app.route('/hardware').post(createNewHardware).get(getHardware);
 app.route('/voip').post(createVoipHardware);
 app.route('/computer').post(createComputerHardware);
 
@@ -153,7 +201,7 @@ app.route('/hardwareTest').post(createHardwareTest);
 
 app.route('/software').post(createSoftware);
 
-
+//Startup REST API Listener on Port 3000
 app.listen(3000, () => {
     console.log("Listening on port 3000");
 });
