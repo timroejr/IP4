@@ -4,6 +4,7 @@ const cors = require('cors');
 const {pool} = require("./db_config");
 
 const app = express();
+const path = require('path');
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: true}));
@@ -13,12 +14,13 @@ const createNewClient = (request, response) => {
 
     const {clientName, address, city, state, zip, phone, email, businessname} = request.body;
 
-    pool.query('INSERT INTO client (clientname,address,city,state,zip,phone,email,businessname) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [clientName, address, city, state, zip, phone, email, businessname],
-        error => {
+    pool.query('INSERT INTO client (clientname,address,city,state,zip,phone,email,businessname) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING businessid', [clientName, address, city, state, zip, phone, email, businessname],
+        (error, results) => {
             if (error) {
+                console.log(error)
                 response.status(405).json({status: 'error', message: "Payload is formatted imporperly"})
             } else {
-                response.status(201).json({status: 'success', message: "Created New Client."})
+                response.status(201).json({status: 'Created new business', message: results.rows})
             }
         });
 
@@ -29,10 +31,10 @@ const getClient = (request, response) => {
     console.log(request);
     const {clientname, businessname} = request.query;
     console.log(clientname);
-    console.log(businessname);
+    //console.log(businessname);
 
-    if (request.query != null) {
-        pool.query('SELECT * FROM CLIENT WHERE lower(clientname) LIKE $1 OR lower(businessname) LIKE $2', ['%' + clientname + '%', '%' + businessname + '%'],
+    if (clientname !== undefined) {
+        pool.query('SELECT * FROM CLIENT WHERE lower(clientname) LIKE $1', ['%' + clientname + '%'],
             (error, results) => {
                 if (error) {
                     response.status(502);
@@ -58,7 +60,7 @@ const getClient = (request, response) => {
 const createNewHardware = (request, response) => {
 
     const {macid, name, client, purchasedate, isvoip, iscompute} = request.body;
-    pool.query('INSERT INTO hardware (macid, name, client, purchasedate, isvoip, iscompute) VALUES ($1, $2, $3, $4, $5, $6)', [macid, name, client, purchasedate, isvoip, iscompute],
+    pool.query('INSERT INTO hardware (macid, name, client, purchasedate) VALUES ($1, $2, $3, $4)', [macid, name, client, purchasedate],
         error => {
             if (error) {
                 //response.status(405);
@@ -103,8 +105,8 @@ const createVoipHardware = (request, response) => {
 
 const createComputerHardware = (request, response) => {
 
-    const {serviceTag, macId, name, activateDate} = request.body;
-    pool.query('INSERT INTO computer (servicetag, macid, name, activatedate) VALUES ($1, $2, $3, $4)', [serviceTag, macId, name, activateDate],
+    const {serviceTag, macId, activateDate} = request.body;
+    pool.query('INSERT INTO computer (servicetag, macid, activatedate) VALUES ($1, $2, $3)', [serviceTag, macId, activateDate],
         error => {
             if (error) {
                 throw error;
@@ -116,12 +118,12 @@ const createComputerHardware = (request, response) => {
 
 const createInvoice = (request, response) => {
     const {invoiceNumber, businessId, isQuote, laborCost} = request.body;
-    pool.query('INSERT INTO invoice (invoicenumber, businessid, isquote, laborcost) VALUES ($1, $2, $3, $4)', [invoiceNumber, businessId, isQuote, laborCost],
-        error => {
+    pool.query('INSERT INTO invoice (businessid, isquote, laborcost) VALUES ($1, $2, $3) returning invoicenumber', [businessId, isQuote, laborCost],
+        (error, results) => {
             if (error) {
                 throw error;
             } else {
-                response.status(201).json({status: "success", message: "Created new invoice"})
+                response.status(201).json({status: "Created new invoice", message: results.rows})
             }
         });
 }
@@ -135,7 +137,7 @@ const getInvoice = (request, response) => {
         pool.query('SELECT * FROM invoice WHERE invoicenumber = $1', [invoicenumber],
             (error, results) => {
                 if (error) {
-                    throw error;
+                    response.status(400).json({status: "error", message: "invalid invoice number"})
                 } else {
                     pool.query('select internalcomponents."name", internalcomponents.price, internalcomponents.quantity, internalcomponents.tax, internalcomponents.vendor from invoicerelation right join internalcomponents on invoicerelation.itemnumber = internalcomponents.id where invoicerelation.invoicenumber = $1', [invoicenumber],
                         (error, results2) => {
@@ -154,12 +156,13 @@ const getInvoice = (request, response) => {
 
 
     } else {
-        pool.query('SELECT * FROM invoice WHERE businessId = $1', [client],
+        pool.query('SELECT invoicenumber FROM invoice WHERE businessId = $1', [client],
             (error, results) => {
                 if (error) {
                     throw error;
                 } else {
-                    response.status(201).join({status: "success", message: results.rows});
+                    //response.status(200).json({status: "success", message: results.rows.invoicenumber});
+                    response.status(200).json({status: "success", message: results.rows});
                 }
             });
     }
@@ -168,29 +171,41 @@ const getInvoice = (request, response) => {
 
 const createInternalComponent = (request, response) => {
     const {id, name, price, vendor, quantity, tax} = request.body;
-    pool.query('INSERT INTO internalcomponents (id, name, price, vendor, quantity, tax) VALUES ($1, $2, $3, $4, $5, $6)', [id, name, price, vendor, quantity, tax],
-        error => {
+    pool.query('INSERT INTO internalcomponents (name, price, vendor, quantity, tax) VALUES ($1, $2, $3, $4, $5) returning *', [name, price, vendor, quantity, tax],
+        (error,results) => {
             if (error) {
                 throw error;
             } else {
-                response.status(201).json({status: "success", message: "Created new component"})
+                response.status(201).json({status: "success", message: results.rows})
             }
         });
 }
 
 const getComponent = (request, response) => {
 
-    const {partname, id, vendor} = request.query;
+    const {partname, vendor} = request.query;
 
-    if (partname || id || vendor) {
-        pool.query('SELECT * FROM internalcomponents WHERE lower(name) LIKE $1 OR id LIKE $2 OR lower(vendor) LIKE $3', ['%' + partname + '%', '%' + id + '%', '%' + vendor + '%'],
+    console.log(partname);
+    console.log(vendor);
+
+    if (partname !== undefined) {
+        pool.query('SELECT * FROM internalcomponents WHERE lower(name) LIKE $1', ['%' + partname.toLowerCase() + '%'],
             (error, results) => {
                 if (error) {
                     throw error;
                 } else {
                     response.status(200).json({status: "success", message: results.rows});
                 }
-            })
+            });
+    } else if (vendor !== undefined) {
+        pool.query('SELECT * FROM internalcomponents WHERE lower(vendor) LIKE $1', ['%' + vendor.toLowerCase() + '%'],
+            (error, results) => {
+            if (error) {
+                throw error;
+            } else {
+                response.status(200).json({status: "success", message: results.rows});
+            }
+        });
     } else {
         pool.query('SELECT * FROM internalcomponents',
             (error, results) => {
@@ -303,6 +318,10 @@ app.route('/component').post(createInternalComponent).get(getComponent);
 app.route('/hardwareTest').post(createHardwareTest).get(getHardwareTest);
 
 app.route('/software').post(createSoftware).get(getSoftware);
+
+app.get('/', function(req, res) {
+    res.sendFile(path.join(__dirname + '/web/index.html'));
+});
 
 //Startup REST API Listener on Port 3000
 app.listen(3000, () => {
