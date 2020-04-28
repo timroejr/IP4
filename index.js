@@ -305,6 +305,32 @@ const getSoftware = (request, response) => {
 
 }
 
+const addPartToComputer = (request, response) => {
+    const {servicetag, item} = request.body;
+
+    pool.query('INSERT INTO computerparts(servicetag, componentid) VALUES ($1, $2)', [computerservicetag, item],
+        (error, results) => {
+            if (error) {
+                throw error;
+            } else {
+                response.status(201).json({status: "success", message: "added part to computer"});
+            }
+        });
+}
+
+const getComputerParts = (request, response) => {
+    const {computerservicetag} = request.query;
+    pool.query('select * from computerparts inner join internalcomponents on internalcomponents.id = computerparts.componentid where servicetag = $1', computerservicetag,
+        (error, results) => {
+            if (error) {
+                throw error;
+            } else {
+                response.status(200).json({status: "success", message: results.rows});
+            }
+    });
+}
+
+
 
 //Create Routes for API
 app.route('/client').post(createNewClient).get(getClient);
@@ -318,6 +344,8 @@ app.route('/component').post(createInternalComponent).get(getComponent);
 app.route('/hardwareTest').post(createHardwareTest).get(getHardwareTest);
 
 app.route('/software').post(createSoftware).get(getSoftware);
+
+app.route('/newpart').post(addPartToComputer).get(getComputerParts);
 
 app.get('/', function(req, res) {
     res.sendFile(path.join(__dirname + '/web/index.html'));
