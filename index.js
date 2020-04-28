@@ -320,7 +320,7 @@ const addPartToComputer = (request, response) => {
 
 const getComputerParts = (request, response) => {
     const {computerservicetag} = request.query;
-    pool.query('select * from computerparts inner join internalcomponents on internalcomponents.id = computerparts.componentid where servicetag = $1', computerservicetag,
+    pool.query('select * from computerparts inner join internalcomponents on internalcomponents.id = computerparts.componentid where servicetag = $1', [computerservicetag],
         (error, results) => {
             if (error) {
                 throw error;
