@@ -347,9 +347,8 @@ app.route('/software').post(createSoftware).get(getSoftware);
 
 app.route('/newpart').post(addPartToComputer).get(getComputerParts);
 
-app.get('/', function(req, res) {
-    res.sendFile(path.join(__dirname + '/web/index.html'));
-});
+
+app.use('/', express.static(path.join(__dirname, '/web')));
 
 //Startup REST API Listener on Port 3000
 app.listen(3000, () => {
